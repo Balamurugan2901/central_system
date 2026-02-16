@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Dashboard</title>
+</head>
+<body>
+
+<h2>Intrusion Dashboard</h2>
+
+<button onclick="loadIntrusions()">Load Intrusions</button>
+<button onclick="loadStats()">Load Stats</button>
+
+<pre id="output"></pre>
+
+<script>
+async function loadIntrusions() {
+    const res = await fetch("http://127.0.0.1:8000/admin/intrusions");
+    const data = await res.json();
+    document.getElementById("output").textContent =
+        JSON.stringify(data, null, 2);
+}
+
+async function loadStats() {
+    const res = await fetch("http://127.0.0.1:8000/admin/stats");
+    const data = await res.json();
+    document.getElementById("output").textContent =
+        JSON.stringify(data, null, 2);
+}
+</script>
+
+</body>
+</html>
