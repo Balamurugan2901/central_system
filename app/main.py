@@ -27,3 +27,6 @@ app.include_router(admin_routes.router)
 @app.get("/")
 def root():
     return {"message": "Central Server Fully Running 🚀"}
+
+from app.api.block_routes import router as block_router
+app.include_router(block_router)

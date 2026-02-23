@@ -63,3 +63,11 @@ class User(Base):
     role = Column(String, default="user")   # user / admin
     is_blocked = Column(Boolean, default=False)
 
+
+class BlockedIP(Base):
+    __tablename__ = "blocked_ips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String, index=True)
+    reason = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)

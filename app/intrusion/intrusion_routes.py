@@ -11,7 +11,7 @@ from app.intrusion.rule_engine import check_rules
 from app.policy.decision_engine import decide_action
 from app.utils.alert_manager import alert_manager
 from app.utils.dependencies import get_current_admin
-
+from app.core.blocking_engine import block_ip
 
 router = APIRouter()
 
@@ -129,9 +129,10 @@ async def run_scan(db: Session = Depends(get_db)):
 @router.post("/scan")
 def scan(packet_rate: float, failed_logins: int, db: Session = Depends(get_db)):
 
+    # 1️⃣ ML risk score
     score = predict_risk(packet_rate, failed_logins)
 
-    # level classification
+    # 2️⃣ Risk level classification
     if score >= 8:
         level = "HIGH"
     elif score >= 4:
@@ -139,16 +140,24 @@ def scan(packet_rate: float, failed_logins: int, db: Session = Depends(get_db)):
     else:
         level = "LOW"
 
+    # 3️⃣ Decide action
     action = decide_action(level)
 
+    # 4️⃣ Save intrusion log
+    src_ip = "unknown"   # later agent will send real IP
+
     log = create_intrusion_log(db, {
-        "src_ip": "unknown",
+        "src_ip": src_ip,
         "packet_rate": packet_rate,
         "failed_logins": failed_logins,
         "risk_score": score,
         "risk_level": level,
         "action": action
     })
+
+    # 5️⃣ AUTO BLOCK if needed 🔥
+    if action == "BLOCK_IP":
+        block_ip(db, src_ip, "High risk intrusion detected")
 
     return {
         "risk_score": score,
