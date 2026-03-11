@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker, Session
 from app.database.models import IntrusionLog
 from .models import Base
 
@@ -10,7 +10,8 @@ engine = create_engine(
     connect_args={"check_same_thread": False}
 )
 
-SessionLocal = Session(
+# ✅ Correct session factory
+SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
@@ -19,7 +20,7 @@ SessionLocal = Session(
 def init_db():
     Base.metadata.create_all(bind=engine)
 
-# 🔥 NEW: Dependency function
+# ✅ Dependency for FastAPI
 def get_db():
     db = SessionLocal()
     try:
@@ -27,6 +28,7 @@ def get_db():
     finally:
         db.close()
 
+# ✅ Insert intrusion log
 def create_intrusion_log(db: Session, data: dict):
     log = IntrusionLog(**data)
     db.add(log)

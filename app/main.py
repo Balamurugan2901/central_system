@@ -14,6 +14,7 @@ app = FastAPI(title="Central Security Server")
 app.include_router(ws_routes.router)
 app.include_router(admin_routes.router)
 
+
 @app.on_event("startup")
 def startup():
     init_db()
@@ -28,5 +29,10 @@ app.include_router(admin_routes.router)
 def root():
     return {"message": "Central Server Fully Running 🚀"}
 
-from app.api.block_routes import router as block_router
+from app.core.block_routes import router as block_router
 app.include_router(block_router)
+
+
+@app.get("/test")
+def test():
+    return {"status": "ok"}
