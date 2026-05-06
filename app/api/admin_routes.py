@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from app.database.session import get_db
-from app.database.models import User
+from sqlalchemy import func
+from app.database.crud import get_db
+from app.database.models import User, IntrusionLog
 from app.utils.dependencies import get_current_admin
 from app.utils.alert_manager import alert_manager
 
@@ -61,20 +62,19 @@ def total_attacks(
     count = db.query(IntrusionLog).count()
     return {"total_attacks": count}
 
-from sqlalchemy import func
 
-@router.get("/stats/risk")
-def risk_stats(
+@router.get("/stats/action")
+def action_stats(
     db: Session = Depends(get_db),
     admin=Depends(get_current_admin)
 ):
     data = (
-        db.query(IntrusionLog.risk_level, func.count())
-        .group_by(IntrusionLog.risk_level)
+        db.query(IntrusionLog.action, func.count())
+        .group_by(IntrusionLog.action)
         .all()
     )
 
-    return {level: count for level, count in data}
+    return {action: count for action, count in data if action}
 
 @router.get("/recent")
 def recent_attacks(
@@ -100,8 +100,7 @@ def search_ip(
         .all()
     )
 
-from sqlalchemy import func
-from datetime import date
+
 
 @router.get("/analytics/daily")
 def daily_attacks(
@@ -120,21 +119,21 @@ def daily_attacks(
 
     return [{"date": str(d.day), "attacks": d.count} for d in data]
 
-@router.get("/analytics/risk-distribution")
-def risk_distribution(
+@router.get("/analytics/action-distribution")
+def action_distribution(
     db: Session = Depends(get_db),
     admin=Depends(get_current_admin)
 ):
     data = (
         db.query(
-            IntrusionLog.risk_level,
+            IntrusionLog.action,
             func.count()
         )
-        .group_by(IntrusionLog.risk_level)
+        .group_by(IntrusionLog.action)
         .all()
     )
 
-    return {level: count for level, count in data}
+    return {action: count for action, count in data if action}
 
 @router.get("/analytics/top-ips")
 def top_attackers(
@@ -174,13 +173,15 @@ def summary(
     admin=Depends(get_current_admin)
 ):
     total = db.query(IntrusionLog).count()
-    high = db.query(IntrusionLog).filter(IntrusionLog.risk_level=="HIGH").count()
-    medium = db.query(IntrusionLog).filter(IntrusionLog.risk_level=="MEDIUM").count()
-    low = db.query(IntrusionLog).filter(IntrusionLog.risk_level=="LOW").count()
+    blocks = db.query(IntrusionLog).filter(IntrusionLog.action=="BLOCK_IP").count()
+    alerts = db.query(IntrusionLog).filter(IntrusionLog.action=="ALERT").count()
+    rate_limits = db.query(IntrusionLog).filter(IntrusionLog.action=="RATE_LIMIT").count()
+    allows = db.query(IntrusionLog).filter(IntrusionLog.action=="ALLOW").count()
 
     return {
         "total": total,
-        "high": high,
-        "medium": medium,
-        "low": low
+        "blocked": blocks,
+        "rate_limited": rate_limits,
+        "alerted": alerts,
+        "allowed": allows
     }

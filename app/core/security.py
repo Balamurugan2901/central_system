@@ -6,12 +6,20 @@ SECRET_KEY = "supersecretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use sha256_crypt to avoid bcrypt version compatibility issues
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 def hash_password(password: str):
     return pwd_context.hash(password)
 
-def verify_password(password, hashed):
+def verify_password(password: str, hashed: str):
+    # Handle legacy bcrypt hashes gracefully
+    if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(password.encode(), hashed.encode())
+        except Exception:
+            return False
     return pwd_context.verify(password, hashed)
 
 def create_access_token(data: dict):

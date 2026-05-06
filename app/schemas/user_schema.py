@@ -1,19 +1,19 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
-# 🔹 Register schema
+# Register schema
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
-# 🔹 Login schema
+# Login schema — use plain str so any email format is accepted
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
-# 🔹 Response schema (optional but useful later)
+# Response schema
 class UserOut(BaseModel):
     id: int
     email: str

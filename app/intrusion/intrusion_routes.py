@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database.crud import get_db, create_intrusion_log
-from app.database.models import IntrusionLog
+from app.database.models import IntrusionLog, PolicyDecision
 from app.intrusion.intrusion_schema import IntrusionCreate, IntrusionResponse
 from app.intrusion.risk_analyzer import classify_risk
-from app.intrusion.ml_engine import predict_risk
+from app.intrusion.ml_engine import predict_action
 from app.intrusion.packet_sniffer import capture_packet
 from app.intrusion.feature_engineering import extract_features
 from app.intrusion.rule_engine import check_rules
-from app.policy.decision_engine import decide_action
+
 from app.utils.alert_manager import alert_manager
 from app.utils.dependencies import get_current_admin
 from app.core.blocking_engine import block_ip
@@ -16,22 +16,19 @@ from app.core.blocking_engine import block_ip
 router = APIRouter()
 
 
-from app.policy.decision_engine import decide_action
+
 
 @router.post("/intrusions", response_model=IntrusionResponse)
 def log_intrusion(data: IntrusionCreate, db: Session = Depends(get_db)):
 
-    # 🔹 ML prediction
-    score = predict_risk(
+    # 🔹 ML prediction (action)
+    action = predict_action(
         packet_rate=data.packet_rate,
         failed_logins=data.failed_logins
     )
+    score = 0.0
 
-    # 🔹 classification
-    risk_level = classify_risk(score)
 
-    # 🔹 decision
-    action = decide_action(risk_level)
 
     # 🔹 store intrusion log
     intrusion = IntrusionLog(
@@ -40,7 +37,7 @@ def log_intrusion(data: IntrusionCreate, db: Session = Depends(get_db)):
         failed_logins=data.failed_logins,
         attack_type=data.attack_type,
         risk_score=score,
-        risk_level=risk_level,
+        risk_level="Unknown",
         action=action,
         client_id=data.client_id
     )
@@ -58,12 +55,11 @@ def log_intrusion(data: IntrusionCreate, db: Session = Depends(get_db)):
     db.commit()
 
     # 🔹 realtime alert
-    if risk_level in ["MEDIUM", "HIGH"]:
+    if action in ["ALERT", "BLOCK_IP"]:
         import asyncio
         asyncio.create_task(alert_manager.broadcast({
             "type": "intrusion_alert",
-            "risk": risk_level,
-            "score": score,
+            "action": action,
             "ip": data.src_ip
         }))
 
@@ -71,7 +67,7 @@ def log_intrusion(data: IntrusionCreate, db: Session = Depends(get_db)):
         "id": intrusion.id,
         "attack_type": intrusion.attack_type,
         "risk_score": score,
-        "risk_level": risk_level,
+        "risk_level": "Unknown",
         "timestamp": intrusion.timestamp,
         "client_id": intrusion.client_id,
         "action": action
@@ -129,19 +125,10 @@ async def run_scan(db: Session = Depends(get_db)):
 @router.post("/scan")
 def scan(packet_rate: float, failed_logins: int, db: Session = Depends(get_db)):
 
-    # 1️⃣ ML risk score
-    score = predict_risk(packet_rate, failed_logins)
-
-    # 2️⃣ Risk level classification
-    if score >= 8:
-        level = "HIGH"
-    elif score >= 4:
-        level = "MEDIUM"
-    else:
-        level = "LOW"
-
-    # 3️⃣ Decide action
-    action = decide_action(level)
+    # 1️⃣ ML action prediction
+    action = predict_action(packet_rate, failed_logins)
+    score = 0.0
+    level = "Unknown"
 
     # 4️⃣ Save intrusion log
     src_ip = "unknown"   # later agent will send real IP

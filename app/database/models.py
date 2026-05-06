@@ -26,6 +26,7 @@ class IntrusionLog(Base):
     risk_score = Column(Float)
     risk_level = Column(String)   # 🔥 NEW COLUMN
     action = Column(String)
+    details = Column(String)      # 🔥 NEW COLUMN FOR AGENT JSON PAYLOAD
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     client_id = Column(Integer, ForeignKey("clients.id"))

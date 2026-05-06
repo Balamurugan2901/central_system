@@ -11,14 +11,18 @@ async def send_intrusion_data():
 
         while True:
 
-            # dummy intrusion simulation
-            packet_rate = random.randint(1, 20)
-            failed_logins = random.randint(0, 5)
+            # Simulate a continuous Brute Force Attack
+            packet_rate = random.randint(30, 60)
+            failed_logins = random.randint(8, 15)
 
             data = {
+                "agent_id": 1,
+                "ip": "203.0.113.5", # External IP mimicking attacker
+                "event": "Brute Force Simulation",
+                "action": "Attempt",
+                "details": "High volume of failed login attempts",
                 "packet_rate": packet_rate,
-                "failed_logins": failed_logins,
-                "client_id": 1
+                "failed_logins": failed_logins
             }
 
             await ws.send(json.dumps(data))
